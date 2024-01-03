@@ -15,6 +15,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - uses: dtolnay/rust-toolchain@stable
+      with: 
+        targets: armv7-unknown-linux-gnueabihf
     - uses: actions/checkout@v3
     - name: Run tests
       run: cargo test --verbose
@@ -22,20 +25,41 @@ jobs:
       run: cargo build --release
     - uses: actions/upload-artifact@v2
       with:
-        name: my-binary
+        name: raspi-fan-controller
         path: target/release/raspi-fan-controller
-create-release:
-  needs: build
-  runs-on: ubuntu-latest
-  steps:
-  - uses: actions/checkout@v2
-  - uses: actions/download-artifact@v2
-    with:
-      name: my-binary
-      path: path/to/artifact
-  - name: Create Release
-    uses: softprops/action-gh-release@v1
-    with:
-    files: target/release/raspi-fan-controller
-  env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  create-release:
+    permissions:
+      # write permission is required to create a github release
+      contents: write
+      # リリースノートを書くためwrite用のpermissionを付与
+      pull-requests: write
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name:  Tag the repository
+      shell: bash
+      id: tag
+      run: |
+            # See https://docs.github.com/en/get-started/using-git/dealing-with-special-characters-in-branch-and-tag-names
+            TAG=v$(date -Iseconds | sed 's/[T:\+]/-/g')
+            echo "$TAG"
+            echo "tag=$TAG" >> $GITHUB_OUTPUT
+            git config --global user.name "GitHub Action"
+            git config --global user.email "xxx@xx.com"
+            git tag -a $TAG -m "Published version $TAG" ${GITHUB_SHA}
+            git push origin $TAG
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - uses: actions/download-artifact@v2
+      with:
+        name: raspi-fan-controller
+        path: download
+    - name: (11) Create a release
+      # if: ${{ github.ref_type == 'tag' }}
+      uses: softprops/action-gh-release@v1
+      with:
+        files: download/raspi-fan-controller
+        tag_name: ${{ steps.tag.outputs.tag }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
