@@ -16,7 +16,26 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Build
-      run: cargo build --verbose
     - name: Run tests
       run: cargo test --verbose
+    - name: Build
+      run: cargo build --release
+    - uses: actions/upload-artifact@v2
+      with:
+        name: my-binary
+        path: target/release/raspi-fan-controller
+create-release:
+  needs: build
+  runs-on: ubuntu-latest
+  steps:
+  - uses: actions/checkout@v2
+  - uses: actions/download-artifact@v2
+    with:
+      name: my-binary
+      path: path/to/artifact
+  - name: Create Release
+    uses: softprops/action-gh-release@v1
+    with:
+    files: target/release/raspi-fan-controller
+  env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
